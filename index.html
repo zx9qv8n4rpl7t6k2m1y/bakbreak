@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Unity WebGL Player | UstroiDestroy</title>
+<link rel="shortcut icon" href="TemplateData/favicon.ico"/>
+<link rel="stylesheet" href="TemplateData/style.css"/>
+</head>
+<body>
+<div id="unity-container" style="position:absolute;width:100%;height:100%;left:0;top:0;">
+  <canvas id="unity-canvas" style="position:absolute;width:100%;height:100%;"></canvas>
+  <div id="unity-loading-bar">
+    <div id="unity-logo"><img src="logo.png" onerror="this.style.display='none'"/></div>
+    <div id="unity-progress-bar-empty">
+      <div id="unity-progress-bar-full"></div>
+    </div>
+  </div>
+  <div id="unity-warning" style="opacity:0"> </div>
+</div>
+
+<!-- YaGames STUB -->
+<script>
+window.YaGames = { init: function() {
+  var sdk = {
+    environment:{ app:{id:'0'}, i18n:{lang:'en',tld:'com'}, browser:{lang:'en'}, payload:null },
+    deviceInfo:{ type:'desktop',
+      isMobile:function(){return false;}, isDesktop:function(){return true;},
+      isTablet:function(){return false;}, isTV:function(){return false;}
+    },
+    adv:{
+      showFullscreenAdv:function(o){ if(o&&o.callbacks&&o.callbacks.onClose) o.callbacks.onClose(false); },
+      showRewardedVideo:function(o){
+        if(!o||!o.callbacks) return;
+        if(o.callbacks.onOpen)     o.callbacks.onOpen();
+        if(o.callbacks.onRewarded) o.callbacks.onRewarded();
+        if(o.callbacks.onClose)    o.callbacks.onClose();
+      },
+      showBannerAdv:function(){}, hideBannerAdv:function(){},
+      getBannerAdvStatus:function(){ return Promise.resolve({stickyAdvIsShowing:false}); }
+    },
+    auth:{ openAuthDialog:function(){ return Promise.resolve(); } },
+    feedback:{
+      canReview:function(){ return Promise.resolve({value:false,reason:''}); },
+      requestReview:function(){ return Promise.resolve({feedbackSent:false}); }
+    },
+    shortcut:{
+      canShowPrompt:function(){ return Promise.resolve({canShow:false}); },
+      showPrompt:function(){ return Promise.resolve({outcome:'rejected'}); }
+    },
+    getPayments:function(){ return Promise.reject('no payments'); },
+    getPlayer:function(){ return Promise.resolve({
+      isAuthorized:function(){return false;}, getMode:function(){return 'lite';},
+      getName:function(){return '';}, getUniqueID:function(){return '0';},
+      getPhoto:function(){return '';}, getPayingStatus:function(){return 'unknown';},
+      setData:function(){return Promise.resolve();}, getData:function(){return Promise.resolve({});}
+    });},
+    serverTime:function(){ return Promise.resolve(Date.now()); },
+    on:function(){},
+    features:{
+      LoadingAPI:{ready:function(){}},
+      GameplayAPI:{start:function(){},stop:function(){}}
+    }
+  };
+  return Promise.resolve(sdk);
+}};
+</script>
+<script>
+(function(){ var s=document.createElement('script'); s.src='/sdk.js';
+  s.onerror=function(){console.warn('[Stub] sdk.js yuklenemedi');}; document.head.appendChild(s); })();
+
+/* AudioContext unlock */
+(function(){
+  function u(){
+    if(window._au) return; window._au=true;
+    try{
+      var c=new(window.AudioContext||window.webkitAudioContext)();
+      var b=c.createBuffer(1,1,22050); var s=c.createBufferSource();
+      s.buffer=b; s.connect(c.destination); s.start(0); c.resume&&c.resume();
+    }catch(e){}
+    document.removeEventListener('touchstart',u);
+    document.removeEventListener('pointerdown',u);
+    document.removeEventListener('click',u);
+  }
+  document.addEventListener('touchstart',u,{passive:true});
+  document.addEventListener('pointerdown',u,{passive:true});
+  document.addEventListener('click',u,{passive:true});
+})();
+</script>
+
+<script>
+var CDN = "BURAYA_CDN";   /* <-- degistir */
+
+var container        = document.querySelector("#unity-container");
+var canvas           = document.querySelector("#unity-canvas");
+var loadingBar       = document.querySelector("#unity-loading-bar");
+var progressBarFull  = document.querySelector("#unity-progress-bar-full");
+var warningBanner    = document.querySelector("#unity-warning");
+
+function unityShowBanner(msg, type) {
+  function upd(){ warningBanner.style.display = warningBanner.children.length?'block':'none'; }
+  var div = document.createElement('div'); div.innerHTML = msg;
+  warningBanner.appendChild(div);
+  if(type==='error') div.style='background:red;padding:10px;';
+  else { if(type==='warning') div.style='background:yellow;padding:10px;';
+    setTimeout(function(){ warningBanner.removeChild(div); upd(); },5000); }
+  upd();
+}
+
+var buildUrl = CDN + "/Build";
+var config = {
+  dataUrl:            buildUrl + "/Destroy1.0.0.0.data.unityweb",
+  frameworkUrl:       buildUrl + "/Destroy1.0.0.0.framework.js.unityweb",
+  codeUrl:            buildUrl + "/Destroy1.0.0.0.wasm.unityweb",
+  streamingAssetsUrl: "StreamingAssets",
+  companyName:        "Sanchez95",
+  productName:        "UstroiDestroy",
+  productVersion:     "1.0.0.0",
+  showBanner:         unityShowBanner
+};
+
+if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  var meta=document.createElement('meta');
+  meta.name='viewport';
+  meta.content='width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
+  document.head.appendChild(meta);
+  container.className="unity-mobile"; canvas.className="unity-mobile";
+}
+canvas.style.width="100%"; canvas.style.height="100%";
+
+/* Background */
+loadingBar.style.background = "url('background.png') center / cover no-repeat";
+loadingBar.style.display = "block";
+
+var ysdk   = null;
+var player = null;
+var myGameInstance = null;
+
+/* SDK init */
+YaGames.init().then(function(sdk){
+  console.log('Yandex SDK initialized');
+  window.ysdk = ysdk = sdk;
+  ysdk.adv.showFullscreenAdv();
+  ysdk.getPlayer().then(function(_p){ player=_p; })
+    .catch(function(e){ console.warn('player not initialized',e); });
+}).catch(function(e){ console.warn('Yandex not initialized',e); });
+
+/* Unity loader */
+var script = document.createElement("script");
+script.src = buildUrl + "/Destroy1.0.0.0.loader.js";
+script.onload = function() {
+  createUnityInstance(canvas, config, function(progress){
+    progressBarFull.style.width = (100*progress) + "%";
+  }).then(function(inst){
+    myGameInstance = inst;
+    loadingBar.style.display = "none";
+  }).catch(function(msg){ alert(msg); });
+};
+document.body.appendChild(script);
+</script>
+</body>
+</html>
